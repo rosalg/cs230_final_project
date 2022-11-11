@@ -2,23 +2,27 @@ import os
 
 def main():
     preprocess('data_folder')
+    
+
+def writeToFile(read_dir, write_dir, img):
+    with open(os.path.join(read_dir, img), "rb") as r, \
+        open(os.path.join(write_dir, img), "wb") as p:
+        p.write(r.read())
+        r.close()
+        p.close()  
 
 
 def preprocess(data_folder_path):
     processed_path = os.path.join(data_folder_path, 'lfw_processed')
     os.makedirs(processed_path, exist_ok=True)
     raw_path = os.path.join(data_folder_path, 'lfw_raw')
-    negative_sample=processed_img_path=None
-    first_dir=prev_dir=None
-    counter = 0
+    first_dir=prev_dir=negative_sample=None
 
     # Loop through each directory of headshot images
     for directory in os.listdir(raw_path):
         if directory.startswith("."): continue
         path_to_raw_image_folder = os.path.join(raw_path, directory)
         images = os.listdir(path_to_raw_image_folder)
-        if counter < 5:
-            print(f'prev_dir: {prev_dir}, path_to_raw_image_folder: {path_to_raw_image_folder}')
 
         # Only add directories which contain more than two headshots (needed for triplet loss)
         if len(images) >= 2:
@@ -26,41 +30,23 @@ def preprocess(data_folder_path):
             os.makedirs(processed_img_path, exist_ok=True)
 
             # Cache first directory to add a negative sample after all loops
-            if not first_dir: 
-                first_dir = path_to_raw_image_folder
-                print(f'first dir: {first_dir}')
+            if not first_dir: first_dir = path_to_raw_image_folder
 
             # Add negative sample
-            if negative_sample:
-                with open(os.path.join(prev_dir, negative_sample), "rb") as r, \
-                    open(os.path.join(processed_img_path, negative_sample), "wb") as p:
-                    p.write(r.read())
-                    r.close()
-                    p.close()
+            if negative_sample: writeToFile(prev_dir, processed_img_path, negative_sample)
 
-            # Add each image to our
+            # Add each image to our processed folder structure and retain the last image as a negative sample
+            # for future directory
             for img_file_name in images:
-                raw_image = os.path.join(path_to_raw_image_folder, img_file_name)
+
+                writeToFile(path_to_raw_image_folder, processed_img_path, img_file_name)
                 negative_sample = img_file_name
-                processed_img = os.path.join(processed_img_path, img_file_name)
-                if counter < 5:
-                    print(f'processed_img: {processed_img}')
-                with open(raw_image, "rb") as f, open(processed_img, "wb") as p:
-                    p.write(f.read())
-                    p.close()
-                    f.close()
 
             prev_dir=path_to_raw_image_folder
-            counter += 1
-
-    print("finished looping")
-    print(f'prev_dir: {prev_dir}, first_dir: {first_dir}, processed_img_path: {processed_img_path}, negative_sample: {negative_sample}')
+   
     # Add a negative sample to the first headshot directory
-    with open(os.path.join(prev_dir, negative_sample), "rb") as r, \
-        open(os.path.join(first_dir, negative_sample), "wb") as p:
-        p.write(r.read())
-        r.close()
-        p.close()       
+    writeToFile(prev_dir, first_dir, negative_sample)
+       
     
 
 
